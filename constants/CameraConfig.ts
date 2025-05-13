@@ -2,12 +2,78 @@
 
 // Color filter presets
 export const FILTERS = [
-  { name: 'Normal', color: 'transparent', opacity: 0 },
-  { name: 'Warm', color: 'rgba(255, 160, 120, 0.2)', opacity: 1 },
-  { name: 'Cool', color: 'rgba(100, 140, 230, 0.2)', opacity: 1 },
-  { name: 'Vintage', color: 'rgba(200, 180, 120, 0.3)', opacity: 1 },
-  { name: 'Cinematic', color: 'rgba(80, 70, 90, 0.3)', opacity: 1 },
-  { name: 'Noir', color: 'rgba(0, 0, 0, 0.4)', opacity: 1 },
+  { 
+    name: 'Normal', 
+    displayName: 'Normal',
+    color: 'transparent', 
+    opacity: 0,
+    description: 'No filter applied',
+    icon: 'image-outline' // Use Ionicons name
+  },
+  { 
+    name: 'Kodak Gold 200', 
+    displayName: 'Gold 200',
+    color: 'rgba(255, 190, 120, 0.25)', 
+    opacity: 1,
+    description: 'Warm, yellowish tones, slight grain',
+    icon: 'film-outline'
+  },
+  { 
+    name: 'Portra 400', 
+    displayName: 'Portra',
+    color: 'rgba(220, 180, 170, 0.25)', 
+    opacity: 1,
+    description: 'Muted tones, soft skin rendering',
+    icon: 'image-outline'
+  },
+  { 
+    name: 'Fujifilm Superia', 
+    displayName: 'Superia',
+    color: 'rgba(130, 180, 160, 0.3)', 
+    opacity: 1,
+    description: 'Cool greens, film contrast',
+    icon: 'leaf-outline'
+  },
+  { 
+    name: 'Polaroid 600', 
+    displayName: 'Polaroid',
+    color: 'rgba(200, 210, 230, 0.3)', 
+    opacity: 1,
+    description: 'Faded pastel look, soft blur',
+    icon: 'square-outline'
+  },
+  { 
+    name: 'Ilford HP5', 
+    displayName: 'HP5 B&W',
+    color: 'rgba(50, 50, 50, 0.6)', 
+    opacity: 1,
+    description: 'Classic black and white',
+    icon: 'contrast-outline'
+  },
+  { 
+    name: 'CineStill 800T', 
+    displayName: 'CineStill',
+    color: 'rgba(80, 105, 160, 0.35)', 
+    opacity: 1,
+    description: 'Blue shadows, halation glow',
+    icon: 'videocam-outline'
+  },
+  { 
+    name: 'Vintage VHS', 
+    displayName: 'VHS',
+    color: 'rgba(180, 100, 120, 0.25)', 
+    opacity: 1,
+    description: 'Low contrast, scan lines',
+    icon: 'tv-outline'
+  },
+  { 
+    name: 'Lomo LC-A', 
+    displayName: 'Lomo',
+    color: 'rgba(70, 40, 90, 0.35)', 
+    opacity: 1,
+    description: 'Vignette and crushed blacks',
+    icon: 'aperture-outline'
+  },
 ];
 
 // Composition guides
@@ -25,6 +91,21 @@ export const COMPOSITION_GRIDS = [
     name: 'Golden Ratio', 
     id: 'golden-ratio',
     description: 'Uses the 1:1.618 ratio found in nature for aesthetically pleasing composition',
+  },
+  {
+    name: 'Triangle Grid',
+    id: 'triangle-grid',
+    description: 'Creates triangular sections to guide dynamic and energetic compositions',
+  },
+  {
+    name: 'Fibonacci Spiral',
+    id: 'fibonacci-spiral',
+    description: 'Uses the logarithmic spiral pattern for natural, flowing compositions',
+  },
+  {
+    name: 'Diagonal Composition',
+    id: 'diagonal-composition',
+    description: 'Uses diagonal lines to create dynamic and engaging compositions',
   },
 ];
 
