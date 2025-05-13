@@ -1,110 +1,208 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import * as MediaLibrary from "expo-media-library";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+export default function GalleryScreen() {
+  const [photos, setPhotos] = useState<MediaLibrary.Asset[]>([]);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<MediaLibrary.Asset | null>(
+    null
+  );
 
-export default function TabTwoScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+  useEffect(() => {
+    (async () => {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      setHasPermission(status === "granted");
+
+      if (status === "granted") {
+        loadPhotos();
+      } else {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const loadPhotos = async () => {
+    setLoading(true);
+    try {
+      const { assets } = await MediaLibrary.getAssetsAsync({
+        mediaType: MediaLibrary.MediaType.photo,
+        first: 100,
+        sortBy: MediaLibrary.SortBy.creationTime,
+      });
+      setPhotos(assets);
+    } catch (error) {
+      console.error("Error loading photos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setSelectedImage(null);
+  };
+
+  // Permission not determined yet
+  if (hasPermission === null) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={styles.text}>Requesting permissions...</Text>
+      </View>
+    );
+  }
+
+  // Permission denied
+  if (hasPermission === false) {
+    return (
+      <View style={styles.container}>
+        <Ionicons name="images-outline" size={80} color="#aaa" />
+        <Text style={styles.text}>Gallery access denied</Text>
+        <Text style={styles.subText}>
+          Please grant media library permission to view your photos
+        </Text>
+        <TouchableOpacity
+          style={styles.permissionButton}
+          onPress={async () => {
+            const { status } = await MediaLibrary.requestPermissionsAsync();
+            setHasPermission(status === "granted");
+          }}
+        >
+          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={styles.text}>Loading photos...</Text>
+      </View>
+    );
+  }
+
+  // No photos found
+  if (photos.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Ionicons name="images-outline" size={80} color="#aaa" />
+        <Text style={styles.text}>No photos found</Text>
+        <Text style={styles.subText}>
+          Photos you take with the camera will appear here
+        </Text>
+      </View>
+    );
+  }
+
+  // Full-size image preview
+  if (selectedImage) {
+    return (
+      <View style={styles.previewContainer}>
+        <Image
+          source={{ uri: selectedImage.uri }}
+          style={styles.previewImage}
+          resizeMode="contain"
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+        <TouchableOpacity style={styles.closeButton} onPress={closePreview}>
+          <Ionicons name="close-circle" size={36} color="white" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Gallery grid view
+  return (
+    <View style={styles.galleryContainer}>
+      <FlatList
+        data={photos}
+        numColumns={3}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.imageContainer}
+            onPress={() => setSelectedImage(item)}
+          >
+            <Image source={{ uri: item.uri }} style={styles.image} />
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.photoGrid}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  text: {
+    fontSize: 18,
+    marginTop: 16,
+    textAlign: "center",
+  },
+  subText: {
+    fontSize: 14,
+    textAlign: "center",
+    color: "#666",
+    marginTop: 8,
+  },
+  permissionButton: {
+    marginTop: 20,
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: "white",
+    fontSize: 16,
+  },
+  galleryContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  photoGrid: {
+    paddingHorizontal: 1,
+    paddingBottom: 5,
+  },
+  imageContainer: {
+    flex: 1 / 3,
+    aspectRatio: 1,
+    padding: 1,
+  },
+  image: {
+    flex: 1,
+    borderRadius: 3,
+  },
+  previewContainer: {
+    flex: 1,
+    backgroundColor: "black",
+    justifyContent: "center",
+  },
+  previewImage: {
+    flex: 1,
+    width: "100%",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    zIndex: 10,
   },
 });

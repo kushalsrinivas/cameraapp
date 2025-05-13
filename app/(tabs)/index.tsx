@@ -1,10 +1,17 @@
+import { CAMERA_SETTINGS, FILTERS } from "@/constants/CameraConfig";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  type CameraType,
+  CameraView,
+  type FlashMode,
+  useCameraPermissions,
+} from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
-import { router } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,42 +23,32 @@ import Reanimated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import {
-  Camera,
-  useCameraDevice,
-  useCameraPermission,
-} from "react-native-vision-camera";
 import { useMediaLibraryPermission } from "../../hooks/useMediaLibraryPermission";
 
-const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera);
+type GridType = "rule-of-thirds" | "golden-ratio" | "none";
 
-// Color filter presets
-const FILTERS = [
-  { name: "Normal", color: "transparent", opacity: 0 },
-  { name: "Warm", color: "rgba(255, 160, 120, 0.2)", opacity: 1 },
-  { name: "Cool", color: "rgba(100, 140, 230, 0.2)", opacity: 1 },
-  { name: "Vintage", color: "rgba(200, 180, 120, 0.3)", opacity: 1 },
-  { name: "Dramatic", color: "rgba(80, 70, 90, 0.3)", opacity: 1 },
-  { name: "Noir", color: "rgba(0, 0, 0, 0.4)", opacity: 1 },
-];
+// Define a type for the CameraView ref that includes takePictureAsync method
+interface CameraViewRef {
+  takePictureAsync: (options?: {
+    quality?: number;
+    skipProcessing?: boolean;
+  }) => Promise<{ uri: string; width: number; height: number }>;
+}
 
 export default function CameraScreen() {
-  const {
-    hasPermission: hasCameraPermission,
-    requestPermission: requestCameraPermission,
-  } = useCameraPermission();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const {
     hasPermission: hasMediaLibraryPermission,
     requestPermission: requestMediaLibraryPermission,
   } = useMediaLibraryPermission();
-  const device = useCameraDevice("back");
-  const camera = useRef<Camera>(null);
 
-  const [flash, setFlash] = useState<"off" | "on">("off");
+  // Using any type for ref to bypass type checking for now
+  const cameraRef = useRef<any>(null);
+
+  const [type, setType] = useState<CameraType>("back");
+  const [flash, setFlash] = useState<FlashMode>("off");
   const [isTakingPicture, setIsTakingPicture] = useState(false);
-  const [gridType, setGridType] = useState<
-    "rule-of-thirds" | "golden-ratio" | "none"
-  >("none");
+  const [gridType, setGridType] = useState<GridType>("none");
   const [selectedFilter, setSelectedFilter] = useState(0); // Index of the selected filter
 
   // Animation for filter overlay
@@ -65,14 +62,18 @@ export default function CameraScreen() {
     (index: number) => {
       setSelectedFilter(index);
       filterOpacity.value = withTiming(FILTERS[index].opacity, {
-        duration: 300,
+        duration: CAMERA_SETTINGS.filterTransitionDuration,
       });
     },
     [filterOpacity]
   );
 
+  const toggleCameraType = useCallback(() => {
+    setType((current) => (current === "back" ? "front" : "back"));
+  }, []);
+
   const toggleFlash = useCallback(() => {
-    setFlash((prevFlash) => (prevFlash === "off" ? "on" : "off"));
+    setFlash((current) => (current === "off" ? "on" : "off"));
   }, []);
 
   const toggleGrid = useCallback(() => {
@@ -84,13 +85,12 @@ export default function CameraScreen() {
   }, []);
 
   const takePicture = async () => {
-    if (camera.current && !isTakingPicture) {
+    if (cameraRef.current && !isTakingPicture) {
       try {
         setIsTakingPicture(true);
-        const photo = await camera.current.takePhoto({
-          flash: flash,
-          quality: 90,
-          enableShutterSound: false,
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: CAMERA_SETTINGS.photoQuality,
+          skipProcessing: Platform.OS === "android", // Skip processing on Android for faster capture
         });
 
         // Request permissions if needed
@@ -107,7 +107,7 @@ export default function CameraScreen() {
         }
 
         // Save the photo to the media library
-        await MediaLibrary.saveToLibraryAsync(`file://${photo.path}`);
+        await MediaLibrary.saveToLibraryAsync(photo.uri);
 
         // Show brief "Saved!" notification
         Alert.alert("Success", "Photo saved to your library!");
@@ -120,22 +120,17 @@ export default function CameraScreen() {
     }
   };
 
-  // Request Camera permission if not yet granted
-  const requestPermissions = async () => {
-    const cameraPermission = await requestCameraPermission();
-    const mediaLibraryPermission = await requestMediaLibraryPermission();
-
-    if (!cameraPermission) {
-      Alert.alert(
-        "Camera Permission Required",
-        "This app needs camera access to take photos. Please grant camera permission in your device settings.",
-        [{ text: "OK", onPress: () => router.back() }]
-      );
-    }
-  };
-
   // Show permission request UI if necessary
-  if (!hasCameraPermission) {
+  if (!cameraPermission) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#ffffff" />
+        <Text style={styles.loadingText}>Requesting permissions...</Text>
+      </View>
+    );
+  }
+
+  if (!cameraPermission.granted) {
     return (
       <View style={styles.permissionsContainer}>
         <Text style={styles.permissionsText}>
@@ -143,7 +138,7 @@ export default function CameraScreen() {
         </Text>
         <TouchableOpacity
           style={styles.permissionsButton}
-          onPress={requestPermissions}
+          onPress={requestCameraPermission}
         >
           <Text style={styles.permissionsButtonText}>Grant Permission</Text>
         </TouchableOpacity>
@@ -151,30 +146,20 @@ export default function CameraScreen() {
     );
   }
 
-  // Show loading indicator if camera device is not available
-  if (!device) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ffffff" />
-        <Text style={styles.loadingText}>Loading camera...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <ReanimatedCamera
-        ref={camera}
+      <CameraView
         style={styles.camera}
-        device={device}
-        isActive={true}
-        photo={true}
-        enableZoomGesture
-      />
+        facing={type}
+        flash={flash}
+        ref={cameraRef}
+      >
+        {/* Camera view content can go here */}
+      </CameraView>
 
       {/* Composition grid overlay */}
       {gridType === "rule-of-thirds" && (
-        <View style={styles.gridOverlay}>
+        <View style={styles.gridOverlay} pointerEvents="none">
           <View style={styles.gridRowThirds}>
             <View style={styles.gridLine} />
             <View style={styles.gridLine} />
@@ -187,7 +172,7 @@ export default function CameraScreen() {
       )}
 
       {gridType === "golden-ratio" && (
-        <View style={styles.gridOverlay}>
+        <View style={styles.gridOverlay} pointerEvents="none">
           <View style={styles.gridRowGolden}>
             <View style={styles.gridLine} />
             <View style={styles.gridLine} />
@@ -206,6 +191,7 @@ export default function CameraScreen() {
           animatedFilterStyle,
           { backgroundColor: FILTERS[selectedFilter].color },
         ]}
+        pointerEvents="none"
       />
 
       {/* Camera controls */}
@@ -216,6 +202,13 @@ export default function CameraScreen() {
             size={24}
             color="white"
           />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={toggleCameraType}
+        >
+          <Ionicons name="camera-reverse" size={24} color="white" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.controlButton} onPress={toggleGrid}>
