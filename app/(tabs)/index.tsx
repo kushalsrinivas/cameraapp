@@ -1,3 +1,5 @@
+import FilterCarousel from "@/components/FilterCarousel";
+import FilterLUT from "@/components/FilterLUT";
 import {
   CAMERA_SETTINGS,
   COMPOSITION_GRIDS,
@@ -18,7 +20,6 @@ import {
   Animated,
   Dimensions,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -64,6 +65,7 @@ const filterIconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
   "videocam-outline": "videocam-outline",
   "tv-outline": "tv-outline",
   "aperture-outline": "aperture-outline",
+  "information-circle": "information-circle",
 };
 
 export default function CameraScreen() {
@@ -288,15 +290,28 @@ export default function CameraScreen() {
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={composed}>
         <View style={styles.cameraContainer}>
+          {/* Camera view */}
           <CameraView
             style={styles.camera}
             facing={type}
             flash={flash}
             ref={cameraRef}
             zoom={zoomLevel}
+          />
+
+          {/* Filter effect overlay with shader */}
+          <Reanimated.View
+            style={[styles.filterOverlay, animatedFilterStyle]}
+            pointerEvents="none"
           >
-            {/* Camera view content can go here */}
-          </CameraView>
+            <FilterLUT
+              filter={FILTERS[selectedFilter].name}
+              color={FILTERS[selectedFilter].color}
+              opacity={FILTERS[selectedFilter].opacity}
+            >
+              <View style={StyleSheet.absoluteFill} />
+            </FilterLUT>
+          </Reanimated.View>
 
           {/* Focus point indicator */}
           {focusPoint && (
@@ -645,97 +660,14 @@ export default function CameraScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Filter selection */}
-      <View style={styles.filtersContainer}>
-        <View style={styles.filterTitleContainer}>
-          <Text style={styles.filterTitleText}>Film Emulation</Text>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersScrollContent}
-          decelerationRate="fast"
-          snapToInterval={84} // 64px icon + 20px margins
-          snapToAlignment="center"
-        >
-          {FILTERS.map((filter, index) => (
-            <TouchableOpacity
-              key={filter.name}
-              style={[
-                styles.filterOption,
-                selectedFilter === index && styles.selectedFilterOption,
-              ]}
-              onPress={() => applyFilter(index)}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.filterSwatch,
-                  {
-                    backgroundColor:
-                      filter.color === "transparent" ? "#424242" : filter.color,
-                  },
-                  selectedFilter === index && styles.selectedFilterSwatch,
-                ]}
-              >
-                {/* Preview circle for filter effect */}
-                <View
-                  style={[
-                    styles.filterPreviewCircle,
-                    {
-                      backgroundColor:
-                        filter.color === "transparent"
-                          ? "#FFFFFF"
-                          : filter.color,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={filterIconMap[filter.icon]}
-                    size={24}
-                    color={
-                      filter.name === "Normal"
-                        ? "white"
-                        : filter.name === "Ilford HP5"
-                        ? "white"
-                        : "#f8f8f8"
-                    }
-                  />
-                </View>
-
-                {/* Film edges effect for vintage look */}
-                {filter.name !== "Normal" && (
-                  <>
-                    <View style={styles.filmEdgeTop} />
-                    <View style={styles.filmEdgeBottom} />
-                  </>
-                )}
-
-                {/* Info badge */}
-                {filter.name !== "Normal" && (
-                  <TouchableOpacity
-                    style={styles.filterInfoBadge}
-                    onPress={() => {
-                      // Show filter description in an alert
-                      Alert.alert(filter.name, filter.description);
-                    }}
-                  >
-                    <Ionicons
-                      name="information-circle"
-                      size={16}
-                      color="#FFFFFF"
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-              <Text style={styles.filterName}>{filter.displayName}</Text>
-              {selectedFilter === index && (
-                <View style={styles.selectedIndicator} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+      {/* Filter selection - using our new FilterCarousel component */}
+      <View style={[styles.filtersContainer]}>
+        <FilterCarousel
+          filters={FILTERS}
+          selectedFilter={selectedFilter}
+          onSelectFilter={applyFilter}
+          filterIconMap={filterIconMap}
+        />
       </View>
 
       {/* Bottom toolbar */}
@@ -830,50 +762,6 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.2)",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.2)",
-  },
-  filtersScrollContent: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  filterOption: {
-    marginHorizontal: 8,
-    alignItems: "center",
-    width: 68,
-  },
-  selectedFilterOption: {
-    transform: [{ scale: 1.05 }],
-  },
-  filterSwatch: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-    overflow: "hidden",
-  },
-  selectedFilterSwatch: {
-    borderColor: "#FFFFFF",
-    borderWidth: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  filterName: {
-    color: "white",
-    fontSize: 12,
-    marginTop: 6,
-    textAlign: "center",
   },
   bottomContainer: {
     position: "absolute",
