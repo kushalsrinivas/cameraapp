@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 
 export default function GalleryScreen() {
+  const router = useRouter();
   const [photos, setPhotos] = useState<MediaLibrary.Asset[]>([]);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,14 @@ export default function GalleryScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openEditor = (image: MediaLibrary.Asset) => {
+    // Navigate to the editor with the selected image URI
+    router.push({
+      pathname: "/editor",
+      params: { uri: image.uri },
+    });
   };
 
   const closePreview = () => {
@@ -116,9 +126,20 @@ export default function GalleryScreen() {
           style={styles.previewImage}
           resizeMode="contain"
         />
-        <TouchableOpacity style={styles.closeButton} onPress={closePreview}>
-          <Ionicons name="close-circle" size={36} color="white" />
-        </TouchableOpacity>
+        <View style={styles.previewControls}>
+          <TouchableOpacity style={styles.previewButton} onPress={closePreview}>
+            <Ionicons name="close-circle" size={28} color="white" />
+            <Text style={styles.previewButtonText}>Close</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.previewButton}
+            onPress={() => openEditor(selectedImage)}
+          >
+            <Ionicons name="create" size={28} color="white" />
+            <Text style={styles.previewButtonText}>Edit</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -199,10 +220,20 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
   },
-  closeButton: {
+  previewControls: {
     position: "absolute",
     top: 40,
     right: 20,
+    flexDirection: "row",
     zIndex: 10,
+  },
+  previewButton: {
+    alignItems: "center",
+    marginLeft: 20,
+  },
+  previewButtonText: {
+    color: "white",
+    marginTop: 5,
+    fontSize: 12,
   },
 });

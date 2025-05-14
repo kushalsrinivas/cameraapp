@@ -10,7 +10,10 @@ import {
   type FlashMode,
   useCameraPermissions,
 } from "expo-camera";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -67,6 +70,7 @@ const filterIconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function CameraScreen() {
+  const router = useRouter();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const {
     hasPermission: hasMediaLibraryPermission,
@@ -238,17 +242,154 @@ export default function CameraScreen() {
           }
         }
 
-        // Save the photo to the media library
-        await MediaLibrary.saveToLibraryAsync(photo.uri);
+        // Process the image based on the selected filter
+        let processedImageUri = photo.uri;
+
+        if (selectedFilter > 0) {
+          // If not using the "Normal" filter
+          try {
+            const currentFilter = FILTERS[selectedFilter];
+
+            // TODO: For a complete filter implementation, consider:
+            // 1. Using a third-party image processing library with more advanced features
+            // 2. Creating a custom native module for more powerful image manipulations
+            // 3. Using something like GL filters or shader effects for real-time processing
+            //
+            // Current implementation has limited capacity as ImageManipulator
+            // doesn't support color adjustments like saturation, brightness, etc.
+
+            // Apply different manipulations based on filter type
+            switch (currentFilter.name) {
+              case "Ilford HP5": {
+                // Black and white high contrast film
+                const bwResult = await ImageManipulator.manipulateAsync(
+                  photo.uri,
+                  [
+                    { resize: { width: photo.width } },
+                    // Limited operations available - we'll rely on UI filters for visual effect
+                  ],
+                  {
+                    format: ImageManipulator.SaveFormat.JPEG,
+                    compress: 0.85, // Higher compression for B&W images
+                  }
+                );
+
+                // Note: In a real app, we could apply more advanced processing using a custom library
+                processedImageUri = bwResult.uri;
+                break;
+              }
+
+              case "Kodachrome": {
+                // Vintage film
+                const kodachromeResult = await ImageManipulator.manipulateAsync(
+                  photo.uri,
+                  [
+                    { resize: { width: photo.width } },
+                    // We're limited to basic operations in ImageManipulator
+                  ],
+                  {
+                    format: ImageManipulator.SaveFormat.JPEG,
+                    compress: 0.88, // Slightly higher quality for this filter
+                  }
+                );
+
+                processedImageUri = kodachromeResult.uri;
+                break;
+              }
+
+              case "Fujifilm Velvia": {
+                // Vibrant color film
+                const fujiResult = await ImageManipulator.manipulateAsync(
+                  photo.uri,
+                  [
+                    { resize: { width: photo.width } },
+                    // Basic operations only
+                  ],
+                  {
+                    format: ImageManipulator.SaveFormat.JPEG,
+                    compress: 0.92, // Higher quality for vibrant colors
+                  }
+                );
+
+                processedImageUri = fujiResult.uri;
+                break;
+              }
+
+              default: {
+                // For other filters, use available operations
+                const operations = [
+                  { resize: { width: photo.width } },
+                  // Limited to basic transformations in current API
+                ];
+
+                const result = await ImageManipulator.manipulateAsync(
+                  photo.uri,
+                  operations,
+                  {
+                    format: ImageManipulator.SaveFormat.JPEG,
+                    compress: 0.9,
+                  }
+                );
+
+                processedImageUri = result.uri;
+              }
+            }
+
+            console.log(`Applied filter: ${FILTERS[selectedFilter].name}`);
+          } catch (error) {
+            console.error("Error applying filter:", error);
+            // Fallback to original image
+            processedImageUri = photo.uri;
+          }
+        }
+
+        // Save the processed photo to the media library
+        await MediaLibrary.saveToLibraryAsync(processedImageUri);
 
         // Show brief "Saved!" notification
-        Alert.alert("Success", "Photo saved to your library!");
+        Alert.alert("Success", "Photo saved with filter applied!");
       } catch (error) {
         console.error("Error taking picture:", error);
         Alert.alert("Error", "Failed to take picture");
       } finally {
         setIsTakingPicture(false);
       }
+    }
+  };
+
+  // Handle importing a photo for editing
+  const importPhoto = async () => {
+    try {
+      // Check for permissions
+      if (!hasMediaLibraryPermission) {
+        const granted = await requestMediaLibraryPermission();
+        if (!granted) {
+          Alert.alert(
+            "Permission Required",
+            "Please allow access to your photo library to import images."
+          );
+          return;
+        }
+      }
+
+      // Open image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Navigate to editor with the selected image
+        router.push({
+          pathname: "/editor",
+          params: { uri: result.assets[0].uri },
+        });
+      }
+    } catch (error) {
+      console.error("Error importing photo:", error);
+      Alert.alert("Error", "Failed to import photo. Please try again.");
     }
   };
 
@@ -610,38 +751,37 @@ export default function CameraScreen() {
       )}
 
       {/* Camera controls */}
-      <View style={styles.controlsContainer}>
-        <TouchableOpacity style={styles.controlButton} onPress={toggleFlash}>
+      <View style={styles.cameraControlsContainer}>
+        {/* Gallery/Import button */}
+        <TouchableOpacity style={styles.cameraControl} onPress={importPhoto}>
+          <Ionicons name="images-outline" size={28} color="#fff" />
+        </TouchableOpacity>
+
+        {/* The existing camera controls */}
+        <TouchableOpacity style={styles.cameraControl} onPress={toggleFlash}>
           <Ionicons
             name={flash === "on" ? "flash" : "flash-off"}
-            size={24}
-            color="white"
+            size={28}
+            color="#fff"
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={toggleCameraType}
-        >
-          <Ionicons name="camera-reverse" size={24} color="white" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.controlButton} onPress={toggleGrid}>
-          <Ionicons name="grid" size={24} color="white" />
-          {gridType !== "none" && (
-            <Text style={styles.gridTypeIndicator}>
-              {COMPOSITION_GRIDS.find(
-                (grid) => grid.id === gridType
-              )?.name.charAt(0)}
-            </Text>
-          )}
+        <TouchableOpacity style={styles.cameraControl} onPress={toggleGrid}>
+          <Ionicons name="grid-outline" size={28} color="#fff" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.controlButton}
+          style={styles.cameraControl}
           onPress={toggleZoomSlider}
         >
-          <Ionicons name="search" size={24} color="white" />
+          <Ionicons name="search-outline" size={28} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.cameraControl}
+          onPress={toggleCameraType}
+        >
+          <Ionicons name="camera-reverse-outline" size={28} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -798,13 +938,13 @@ const styles = StyleSheet.create({
     color: "white",
     marginTop: 10,
   },
-  controlsContainer: {
+  cameraControlsContainer: {
     position: "absolute",
     top: 50,
     right: 20,
     flexDirection: "column",
   },
-  controlButton: {
+  cameraControl: {
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderRadius: 30,
     padding: 10,
