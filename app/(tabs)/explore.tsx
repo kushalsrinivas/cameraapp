@@ -1,3 +1,4 @@
+import { saveImagePermanently, validateFileExists } from "@/utils/fileUtils";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
@@ -5,6 +6,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -50,12 +52,30 @@ export default function GalleryScreen() {
     }
   };
 
-  const openEditor = (image: MediaLibrary.Asset) => {
-    // Navigate to the editor with the selected image URI
-    router.push({
-      pathname: "/editor",
-      params: { uri: image.uri },
-    });
+  const openEditor = async (image: MediaLibrary.Asset) => {
+    try {
+      // Save the image to a permanent location before navigation
+      const permanentUri = await saveImagePermanently(image.uri);
+
+      // Verify the file exists before navigating
+      const fileExists = await validateFileExists(permanentUri);
+
+      if (!fileExists) {
+        throw new Error("Failed to save image to permanent storage");
+      }
+
+      // Navigate to the editor with the permanent URI
+      router.push({
+        pathname: "/editor",
+        params: { uri: permanentUri },
+      });
+    } catch (error) {
+      console.error("Error preprocessing image:", error);
+      Alert.alert(
+        "Error",
+        "Failed to process the selected image. Please try another one."
+      );
+    }
   };
 
   const closePreview = () => {

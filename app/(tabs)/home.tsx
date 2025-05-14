@@ -1,4 +1,5 @@
 import type { UserPreset } from "@/types/editor";
+import { saveImagePermanently, validateFileExists } from "@/utils/fileUtils";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
@@ -90,11 +91,32 @@ export default function HomeScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Navigate to editor with the selected image
-        router.push({
-          pathname: "/editor",
-          params: { uri: result.assets[0].uri },
-        });
+        try {
+          // Get the selected image
+          const selectedImage = result.assets[0];
+
+          // Save the image to a permanent location before navigation
+          const permanentUri = await saveImagePermanently(selectedImage.uri);
+
+          // Verify the file exists before navigating
+          const fileExists = await validateFileExists(permanentUri);
+
+          if (!fileExists) {
+            throw new Error("Failed to save image to permanent storage");
+          }
+
+          // Navigate to editor with the permanent URI
+          router.push({
+            pathname: "/editor",
+            params: { uri: permanentUri },
+          });
+        } catch (error) {
+          console.error("Error preprocessing image:", error);
+          Alert.alert(
+            "Error",
+            "Failed to process the selected image. Please try another one."
+          );
+        }
       }
     } catch (error) {
       console.error("Error importing photo:", error);
