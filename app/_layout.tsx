@@ -1,4 +1,5 @@
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { ensureDirectories } from "@/utils/fileUtils";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Camera from "expo-camera";
 import { useFonts } from "expo-font";
@@ -22,11 +23,20 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Request necessary permissions on app start
+  // Request necessary permissions and initialize file system on app start
   useEffect(() => {
     (async () => {
+      // Request permissions
       await Camera.requestCameraPermissionsAsync();
       await MediaLibrary.requestPermissionsAsync();
+
+      // Ensure file directories are created
+      try {
+        await ensureDirectories();
+        console.log("App directories initialized successfully");
+      } catch (error) {
+        console.error("Failed to initialize app directories:", error);
+      }
     })();
   }, []);
 

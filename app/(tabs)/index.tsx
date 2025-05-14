@@ -3,6 +3,7 @@ import {
   COMPOSITION_GRIDS,
   FILTERS,
 } from "@/constants/CameraConfig";
+import { saveImagePermanently, validateFileExists } from "@/utils/fileUtils";
 import { Ionicons } from "@expo/vector-icons";
 import {
   type CameraType,
@@ -346,8 +347,21 @@ export default function CameraScreen() {
         // Save the processed photo to the media library
         await MediaLibrary.saveToLibraryAsync(processedImageUri);
 
-        // Show brief "Saved!" notification
-        Alert.alert("Success", "Photo saved with filter applied!");
+        // Save the image to a permanent location before navigation
+        const permanentUri = await saveImagePermanently(processedImageUri);
+
+        // Verify the file exists before navigating
+        const fileExists = await validateFileExists(permanentUri);
+
+        if (!fileExists) {
+          throw new Error("Failed to save image to permanent storage");
+        }
+
+        // Navigate to editor with permanent URI
+        router.push({
+          pathname: "/editor",
+          params: { uri: permanentUri },
+        });
       } catch (error) {
         console.error("Error taking picture:", error);
         Alert.alert("Error", "Failed to take picture");
@@ -381,15 +395,41 @@ export default function CameraScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Navigate to editor with the selected image
-        router.push({
-          pathname: "/editor",
-          params: { uri: result.assets[0].uri },
-        });
+        try {
+          setIsTakingPicture(true); // Show loading indicator
+
+          // Get the selected image
+          const selectedImage = result.assets[0];
+
+          // Save the image to a permanent location before navigation
+          const permanentUri = await saveImagePermanently(selectedImage.uri);
+
+          // Verify the file exists before navigating
+          const fileExists = await validateFileExists(permanentUri);
+
+          if (!fileExists) {
+            throw new Error("Failed to save image to permanent storage");
+          }
+
+          // Navigate to editor with the permanent URI
+          router.push({
+            pathname: "/editor",
+            params: { uri: permanentUri },
+          });
+        } catch (error) {
+          console.error("Error preprocessing image:", error);
+          Alert.alert(
+            "Error",
+            "Failed to process the selected image. Please try another one."
+          );
+        } finally {
+          setIsTakingPicture(false); // Hide loading indicator
+        }
       }
     } catch (error) {
       console.error("Error importing photo:", error);
       Alert.alert("Error", "Failed to import photo. Please try again.");
+      setIsTakingPicture(false);
     }
   };
 

@@ -27,6 +27,7 @@ import SavePresetModal from "@/components/editor/SavePresetModal";
 
 // Types
 import type { EditorAdjustments, UserPreset } from "@/types/editor";
+import { validateFileExists } from "@/utils/fileUtils";
 import { type LutFilter, loadLutFilters } from "@/utils/lutUtils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -46,10 +47,12 @@ export default function EditorScreen() {
   const [originalImageUri, setOriginalImageUri] = useState<string>(imageUri);
   const [previewImageUri, setPreviewImageUri] = useState<string>(imageUri);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPresetModalVisible, setIsPresetModalVisible] = useState(false);
   const [availableFilters, setAvailableFilters] = useState<LutFilter[]>([]);
   const [selectedFilterIndex, setSelectedFilterIndex] = useState(0);
   const [isImageReady, setIsImageReady] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // Editing state
   const [adjustments, setAdjustments] = useState<EditorAdjustments>({
@@ -84,6 +87,27 @@ export default function EditorScreen() {
   useEffect(() => {
     const initializeEditor = async () => {
       try {
+        setIsLoading(true);
+
+        // Check if image URI is valid
+        if (!imageUri) {
+          setImageError("No image found. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Validate that the image file exists
+        const fileExists = await validateFileExists(imageUri);
+
+        if (!fileExists) {
+          console.error("Image file doesn't exist:", imageUri);
+          setImageError("Image file not found. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Image file exists and is accessible:", imageUri);
+
         // Load LUT filters
         const filters = await loadLutFilters();
         setAvailableFilters(filters);
@@ -94,14 +118,14 @@ export default function EditorScreen() {
           setUserPresets(JSON.parse(presetsJson));
         }
 
-        // Prepare the image for editing (especially important for Android)
+        // Prepare the image for editing
         await prepareImageForEditing(imageUri);
+
+        setIsLoading(false);
       } catch (error) {
         console.error("Error initializing editor:", error);
-        Alert.alert(
-          "Error",
-          "Failed to initialize the editor. Please try again."
-        );
+        setImageError("Failed to initialize the editor. Please try again.");
+        setIsLoading(false);
       }
     };
 
@@ -127,63 +151,49 @@ export default function EditorScreen() {
 
       // Get image dimensions first
       try {
-        // Skip the resize step on iOS as it's usually not needed
-        if (Platform.OS === "ios") {
-          // Just make a copy at high quality
-          const result = await ImageManipulator.manipulateAsync(uri, [], {
-            compress: 0.95,
-            format: ImageManipulator.SaveFormat.JPEG,
-          });
-          setOriginalImageUri(result.uri);
-          setPreviewImageUri(result.uri);
-          setIsImageReady(true);
-          return;
-        }
-
-        // For Android, always resize and save to our cache
-        const result = await ImageManipulator.manipulateAsync(
-          uri,
-          [{ resize: { width: maxDimension } }],
-          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
-        );
-
-        // Copy the file to our cache location
-        await FileSystem.copyAsync({
-          from: result.uri,
-          to: cachedPath,
+        // Just make a copy at high quality
+        const result = await ImageManipulator.manipulateAsync(uri, [], {
+          compress: 0.95,
+          format: ImageManipulator.SaveFormat.JPEG,
         });
 
-        // Set as the working image
-        setOriginalImageUri(cachedPath);
-        setPreviewImageUri(cachedPath);
+        setOriginalImageUri(result.uri);
+        setPreviewImageUri(result.uri);
         setIsImageReady(true);
       } catch (error) {
         console.error("Error preparing image:", error);
-
-        // Fallback: try direct file system copy
-        try {
-          await FileSystem.copyAsync({
-            from: uri,
-            to: cachedPath,
-          });
-
-          setOriginalImageUri(cachedPath);
-          setPreviewImageUri(cachedPath);
-          setIsImageReady(true);
-        } catch (copyError) {
-          console.error("Error copying image:", copyError);
-          throw new Error("Could not prepare image for editing");
-        }
+        throw new Error("Failed to prepare image for editing");
       }
     } catch (error) {
-      console.error("Failed to prepare image:", error);
-      Alert.alert(
-        "Image Error",
-        "There was a problem loading the image. Please try a different image."
-      );
-      router.back();
+      console.error("Error in prepareImageForEditing:", error);
+      throw error;
     }
   };
+
+  // If there's an error loading the image, show an error message with a back button
+  if (imageError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{imageError}</Text>
+        <TouchableOpacity
+          style={styles.errorButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.errorButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Show loading while preparing the image
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#ffffff" />
+        <Text style={styles.loadingText}>Loading image...</Text>
+      </View>
+    );
+  }
 
   // Apply edits to create preview image
   const applyEdits = async () => {
@@ -614,5 +624,26 @@ const styles = StyleSheet.create({
   },
   disabledContent: {
     opacity: 0.5,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    color: "#fff",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  errorButton: {
+    backgroundColor: "#3498db",
+    padding: 10,
+    borderRadius: 5,
+  },
+  errorButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
