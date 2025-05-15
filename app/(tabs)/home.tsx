@@ -6,11 +6,13 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
   Dimensions,
   FlatList,
+
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -140,6 +142,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="light" translucent backgroundColor="transparent" />
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>FilmLab</Text>

@@ -2,8 +2,15 @@
   {
     "name": "Tokyo Deception",
     "displayName": "Tokyo",
-    "filePath": "luts/TokyoDeception.CUBE",
+    "filePath": "luts/tokyodeception.png",
     "description": "Cinematic Tokyo style with blue shadows and amber highlights",
     "icon": "videocam-outline"
+  },
+  {
+    "name": "Chinatown",
+    "displayName": "Chinatown",
+    "filePath": "luts/chinatown.png",
+    "description": "Vibrant urban look with enhanced warm tones and deep contrast",
+    "icon": "aperture-outline"
   }
 ] 

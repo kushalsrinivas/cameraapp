@@ -24,11 +24,20 @@ export default function TabLayout() {
         name="home"
         options={{
           title: "Home",
+          headerShown: true,
+          headerTransparent: true, // Makes header background transparent
+          headerStyle: {
+            backgroundColor: "transparent",
+            elevation: 0, // For Android
+            shadowOpacity: 0, // For iOS
+            borderBottomWidth: 0, // Optional
+          },
           tabBarIcon: ({ color }) => (
             <Ionicons name="home" size={24} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="index"
         options={{

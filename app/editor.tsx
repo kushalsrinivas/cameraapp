@@ -1,21 +1,3 @@
-import * as FileSystem from "expo-file-system";
-import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
-import * as ImageManipulator from "expo-image-manipulator";
-import * as MediaLibrary from "expo-media-library";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Platform,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-
 import AdjustmentsTab from "@/components/editor/AdjustmentsTab";
 import CropRotateTab from "@/components/editor/CropRotateTab";
 // Components
@@ -24,6 +6,27 @@ import EffectsTab from "@/components/editor/EffectsTab";
 import FilterTab from "@/components/editor/FilterTab";
 import PresetsTab from "@/components/editor/PresetsTab";
 import SavePresetModal from "@/components/editor/SavePresetModal";
+import { Ionicons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
+import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
+import * as ImageManipulator from "expo-image-manipulator";
+import { FlipType } from "expo-image-manipulator";
+import * as MediaLibrary from "expo-media-library";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // Types
 import type { EditorAdjustments, UserPreset } from "@/types/editor";
@@ -53,6 +56,7 @@ export default function EditorScreen() {
   const [selectedFilterIndex, setSelectedFilterIndex] = useState(0);
   const [isImageReady, setIsImageReady] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [isHelpVisible, setIsHelpVisible] = useState(true);
 
   // Editing state
   const [adjustments, setAdjustments] = useState<EditorAdjustments>({
@@ -203,10 +207,10 @@ export default function EditorScreen() {
     }
 
     try {
-      // Apply manipulations based on current state
+      // Starting with manipulations that can be performed directly by ImageManipulator
       const actions: ImageManipulator.Action[] = [];
 
-      // Apply crop if changed
+      // Apply crop and rotation actions
       if (
         cropParams.rotation !== 0 ||
         cropParams.flipHorizontal ||
@@ -221,11 +225,11 @@ export default function EditorScreen() {
 
         // Flips
         if (cropParams.flipHorizontal) {
-          actions.push({ flip: "horizontal" });
+          actions.push({ flip: FlipType.Horizontal });
         }
 
         if (cropParams.flipVertical) {
-          actions.push({ flip: "vertical" });
+          actions.push({ flip: FlipType.Vertical });
         }
 
         // Crop
@@ -241,43 +245,28 @@ export default function EditorScreen() {
         }
       }
 
-      // Make the image URI a usable format for Android
-      const imageToProcess = originalImageUri;
-
-      // Apply adjustments using ImageManipulator
-      try {
-        // Create a temporary cache directory path
-        const cacheDir = `${FileSystem.cacheDirectory}edited_images/`;
-        const filename = `preview_${Date.now()}.jpg`;
-        const cachedPath = `${cacheDir}${filename}`;
-
-        // Process the image
-        const manipResult = await ImageManipulator.manipulateAsync(
-          imageToProcess,
-          actions,
-          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
-        );
-
-        // On Android, copy to our cache location to ensure it remains accessible
-        if (Platform.OS === "android") {
-          await FileSystem.copyAsync({
-            from: manipResult.uri,
-            to: cachedPath,
-          });
-          setPreviewImageUri(cachedPath);
-        } else {
-          // On iOS, we can use the manipulated image directly
-          setPreviewImageUri(manipResult.uri);
-        }
-      } catch (err) {
-        console.error("Manipulation failed:", err);
-
-        // If the edit fails, notify the user
-        Alert.alert(
-          "Edit Failed",
-          "Could not apply these edits. Try a different adjustment."
-        );
+      // Create a cache directory if needed
+      const cacheDir = `${FileSystem.cacheDirectory}edited_images/`;
+      const dirInfo = await FileSystem.getInfoAsync(cacheDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
       }
+
+      // Process the image with a lower quality for preview (faster)
+      const manipResult = await ImageManipulator.manipulateAsync(
+        originalImageUri,
+        actions,
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      // Use this as the base for further adjustments
+      // Note: In a full implementation, you'd process the adjustments
+      // using shaders or another image processing library
+      setPreviewImageUri(manipResult.uri);
+
+      // For a production app, here is where you would apply complex adjustments
+      // like exposure, contrast, saturation, etc. using a library
+      // like GLView or a shader implementation
     } catch (error) {
       console.error("Error applying edits:", error);
       Alert.alert(
@@ -287,7 +276,7 @@ export default function EditorScreen() {
     }
   };
 
-  // Save edited image
+  // Save edited image with all applied adjustments
   const saveImage = async () => {
     if (!isImageReady) {
       Alert.alert(
@@ -301,10 +290,46 @@ export default function EditorScreen() {
       setIsSaving(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+      // Create a cache directory if needed
+      const cacheDir = `${FileSystem.cacheDirectory}edited_images/`;
+      const dirInfo = await FileSystem.getInfoAsync(cacheDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+      }
+
+      // Apply all manipulations for the final image
+      const actions: ImageManipulator.Action[] = [];
+
+      // Add crop and rotation actions
+      if (cropParams.rotation !== 0) {
+        actions.push({ rotate: cropParams.rotation });
+      }
+
+      if (cropParams.flipHorizontal) {
+        actions.push({ flip: FlipType.Horizontal });
+      }
+
+      if (cropParams.flipVertical) {
+        actions.push({ flip: FlipType.Vertical });
+      }
+
+      if (cropParams.crop.width !== 1 || cropParams.crop.height !== 1) {
+        actions.push({
+          crop: {
+            originX: cropParams.crop.originX,
+            originY: cropParams.crop.originY,
+            width: cropParams.crop.width,
+            height: cropParams.crop.height,
+          },
+        });
+      }
+
       // Create a final copy of the image at high quality
+      // Note: In a full implementation, you'd process the adjustments
+      // in addition to the transformations
       const finalImage = await ImageManipulator.manipulateAsync(
-        previewImageUri,
-        [], // No additional manipulations
+        originalImageUri,
+        actions,
         { compress: 0.95, format: ImageManipulator.SaveFormat.JPEG }
       );
 
@@ -324,7 +349,7 @@ export default function EditorScreen() {
 
           // Add at the beginning (newest first)
           recentImages.unshift({
-            uri: finalImage.uri,
+            uri: asset.uri, // Use the asset URI as it's more stable
             date: formattedDate,
           });
 
@@ -527,6 +552,8 @@ export default function EditorScreen() {
             <TouchableOpacity
               onPress={saveImage}
               disabled={isSaving || !isImageReady}
+              style={styles.saveButtonContainer}
+              hitSlop={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <Text
                 style={[
@@ -556,6 +583,84 @@ export default function EditorScreen() {
           />
         )}
       </View>
+
+      {/* Help overlay - shown the first time a user opens the editor */}
+      {isHelpVisible && isImageReady && (
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsHelpVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.helpOverlay}
+            activeOpacity={0.9}
+            onPress={() => setIsHelpVisible(false)}
+          >
+            <View style={styles.helpContent}>
+              <Text style={styles.helpTitle}>Quick Tips</Text>
+
+              <ScrollView style={styles.helpScrollView}>
+                <View style={styles.helpItem}>
+                  <Ionicons
+                    name="color-filter-outline"
+                    size={22}
+                    color="#3498db"
+                  />
+                  <Text style={styles.helpText}>
+                    Use Filters for quick style changes
+                  </Text>
+                </View>
+                <View style={styles.helpItem}>
+                  <Ionicons name="crop-outline" size={22} color="#3498db" />
+                  <Text style={styles.helpText}>
+                    Crop and rotate are fully functional
+                  </Text>
+                </View>
+                <View style={styles.helpItem}>
+                  <Ionicons name="save-outline" size={22} color="#3498db" />
+                  <Text style={styles.helpText}>
+                    Save presets for your favorite styles
+                  </Text>
+                </View>
+                <View style={styles.helpItem}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={22}
+                    color="#f39c12"
+                  />
+                  <Text style={styles.helpText}>
+                    Advanced adjustments coming soon!
+                  </Text>
+                </View>
+                <View style={styles.helpItem}>
+                  <Ionicons name="flash-outline" size={22} color="#3498db" />
+                  <Text style={styles.helpText}>
+                    Basic transforms should be much faster now
+                  </Text>
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.helpDismissButton}
+                onPress={() => setIsHelpVisible(false)}
+              >
+                <Text style={styles.helpDismissText}>Got it!</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Help button - always visible when image is ready */}
+      {isImageReady && !isHelpVisible && (
+        <TouchableOpacity
+          style={styles.helpButton}
+          onPress={() => setIsHelpVisible(true)}
+        >
+          <Ionicons name="help-circle" size={28} color="#3498db" />
+        </TouchableOpacity>
+      )}
 
       {/* Bottom editing toolbar - disabled while image is loading */}
       <EditorToolbar
@@ -605,7 +710,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     color: "#3498db",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     paddingHorizontal: 10,
   },
@@ -645,5 +750,82 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  helpOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  helpContent: {
+    backgroundColor: "#222",
+    padding: 20,
+    borderRadius: 10,
+    width: "85%",
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: "#444",
+  },
+  helpTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#fff",
+    textAlign: "center",
+  },
+  helpItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+    paddingHorizontal: 5,
+  },
+  helpText: {
+    marginLeft: 10,
+    color: "#ddd",
+    fontSize: 14,
+    flex: 1,
+  },
+  helpDismissButton: {
+    backgroundColor: "#3498db",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginTop: 15,
+  },
+  helpDismissText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  helpButton: {
+    position: "absolute",
+    bottom: 160,
+    right: 15,
+    padding: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 20,
+    zIndex: 100,
+    borderWidth: 1,
+    borderColor: "#3498db",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  helpScrollView: {
+    maxHeight: 250,
+    marginBottom: 5,
+  },
+  saveButtonContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    minWidth: 70,
+    alignItems: "center",
   },
 });

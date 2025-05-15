@@ -10,6 +10,7 @@ interface EditorToolbarProps {
   onTabChange: (tab: EditorTab) => void;
   onShare: () => void;
   onSaveAsPreset: () => void;
+  disabled?: boolean;
 }
 
 export default function EditorToolbar({
@@ -17,6 +18,7 @@ export default function EditorToolbar({
   onTabChange,
   onShare,
   onSaveAsPreset,
+  disabled = false,
 }: EditorToolbarProps) {
   // Function to handle tab change with haptic feedback
   const handleTabChange = (tab: EditorTab) => {
@@ -32,38 +34,53 @@ export default function EditorToolbar({
           label="Filters"
           active={currentTab === "filters"}
           onPress={() => handleTabChange("filters")}
+          disabled={disabled}
         />
         <TabButton
           icon="options-outline"
           label="Adjust"
           active={currentTab === "adjustments"}
           onPress={() => handleTabChange("adjustments")}
+          disabled={disabled}
         />
         <TabButton
           icon="crop-outline"
           label="Crop"
           active={currentTab === "crop"}
           onPress={() => handleTabChange("crop")}
+          disabled={disabled}
         />
         <TabButton
           icon="aperture-outline"
           label="Effects"
           active={currentTab === "effects"}
           onPress={() => handleTabChange("effects")}
+          disabled={disabled}
         />
         <TabButton
           icon="bookmark-outline"
           label="Presets"
           active={currentTab === "presets"}
           onPress={() => handleTabChange("presets")}
+          disabled={disabled}
         />
       </View>
 
       <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.actionButton} onPress={onShare}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onShare}
+          disabled={disabled}
+          opacity={disabled ? 0.5 : 1}
+        >
           <Ionicons name="share-outline" size={22} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={onSaveAsPreset}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onSaveAsPreset}
+          disabled={disabled}
+          opacity={disabled ? 0.5 : 1}
+        >
           <Ionicons name="save-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -77,13 +94,16 @@ interface TabButtonProps {
   label: string;
   active: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }
 
-function TabButton({ icon, label, active, onPress }: TabButtonProps) {
+function TabButton({ icon, label, active, onPress, disabled }: TabButtonProps) {
   return (
     <TouchableOpacity
       style={[styles.tab, active && styles.activeTab]}
       onPress={onPress}
+      disabled={disabled}
+      opacity={disabled ? 0.5 : 1}
     >
       <Ionicons name={icon} size={22} color={active ? "#3498db" : "#999"} />
       <Text style={[styles.tabLabel, active && styles.activeTabLabel]}>

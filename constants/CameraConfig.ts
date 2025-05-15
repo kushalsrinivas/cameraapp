@@ -8,7 +8,26 @@ export const FILTERS = [
     color: 'transparent', 
     opacity: 0,
     description: 'No filter applied',
-    icon: 'image-outline' // Use Ionicons name
+    icon: 'image-outline', // Use Ionicons name
+    filePath: ''
+  },
+  { 
+    name: 'Tokyo Deception', 
+    displayName: 'Tokyo',
+    color: 'rgba(80, 110, 160, 0.1)', 
+    opacity: 0.2,
+    description: 'Cinematic Tokyo style with blue shadows and amber highlights',
+    icon: 'videocam-outline',
+    filePath: 'luts/tokyodeception.png'
+  },
+  { 
+    name: 'Chinatown', 
+    displayName: 'Chinatown',
+    color: 'rgba(220, 150, 100, 0.1)', 
+    opacity: 0.2,
+    description: 'Vibrant urban look with enhanced warm tones and deep contrast',
+    icon: 'aperture-outline',
+    filePath: 'luts/chinatown.png'
   },
   { 
     name: 'Kodak Gold 200', 
@@ -16,7 +35,8 @@ export const FILTERS = [
     color: 'rgba(255, 190, 120, 0.25)', 
     opacity: 1,
     description: 'Warm, yellowish tones, slight grain',
-    icon: 'film-outline'
+    icon: 'film-outline',
+    filePath: ''
   },
   { 
     name: 'Portra 400', 
@@ -24,7 +44,8 @@ export const FILTERS = [
     color: 'rgba(220, 180, 170, 0.25)', 
     opacity: 1,
     description: 'Muted tones, soft skin rendering',
-    icon: 'image-outline'
+    icon: 'image-outline',
+    filePath: ''
   },
   { 
     name: 'Fujifilm Superia', 
@@ -32,7 +53,8 @@ export const FILTERS = [
     color: 'rgba(130, 180, 160, 0.3)', 
     opacity: 1,
     description: 'Cool greens, film contrast',
-    icon: 'leaf-outline'
+    icon: 'leaf-outline',
+    filePath: ''
   },
   { 
     name: 'Polaroid 600', 
@@ -40,7 +62,8 @@ export const FILTERS = [
     color: 'rgba(200, 210, 230, 0.3)', 
     opacity: 1,
     description: 'Faded pastel look, soft blur',
-    icon: 'square-outline'
+    icon: 'square-outline',
+    filePath: ''
   },
   { 
     name: 'Ilford HP5', 
@@ -48,7 +71,8 @@ export const FILTERS = [
     color: 'rgba(50, 50, 50, 0.6)', 
     opacity: 1,
     description: 'Classic black and white',
-    icon: 'contrast-outline'
+    icon: 'contrast-outline',
+    filePath: ''
   },
   { 
     name: 'CineStill 800T', 
@@ -56,7 +80,8 @@ export const FILTERS = [
     color: 'rgba(80, 105, 160, 0.35)', 
     opacity: 1,
     description: 'Blue shadows, halation glow',
-    icon: 'videocam-outline'
+    icon: 'videocam-outline',
+    filePath: ''
   },
   { 
     name: 'Vintage VHS', 
@@ -64,7 +89,8 @@ export const FILTERS = [
     color: 'rgba(180, 100, 120, 0.25)', 
     opacity: 1,
     description: 'Low contrast, scan lines',
-    icon: 'tv-outline'
+    icon: 'tv-outline',
+    filePath: ''
   },
   { 
     name: 'Lomo LC-A', 
@@ -72,7 +98,8 @@ export const FILTERS = [
     color: 'rgba(70, 40, 90, 0.35)', 
     opacity: 1,
     description: 'Vignette and crushed blacks',
-    icon: 'aperture-outline'
+    icon: 'aperture-outline',
+    filePath: ''
   },
 ];
 

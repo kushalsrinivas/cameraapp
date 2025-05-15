@@ -27,7 +27,7 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       // Request permissions
-      await Camera.requestCameraPermissionsAsync();
+      await Camera.useCameraPermissions();
       await MediaLibrary.requestPermissionsAsync();
 
       // Ensure file directories are created

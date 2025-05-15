@@ -193,6 +193,14 @@ export default function AdjustmentsTab({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.noteContainer}>
+        <Ionicons name="information-circle-outline" size={16} color="#f39c12" />
+        <Text style={styles.noteText}>
+          Advanced adjustments are currently being optimized. Basic
+          transformations (crop, flip, rotate) are fully functional.
+        </Text>
+      </View>
+
       {ADJUSTMENTS_CONFIG.map((config) => (
         <View key={config.key} style={styles.adjustmentRow}>
           <View style={styles.labelContainer}>
@@ -249,13 +257,13 @@ const styles = StyleSheet.create({
   adjustmentRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    borderBottomColor: "#222",
   },
   labelContainer: {
-    width: 110,
+    width: 100,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -265,7 +273,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   resetButton: {
-    marginLeft: "auto",
+    marginLeft: 8,
     padding: 2,
   },
   sliderContainer: {
@@ -273,18 +281,31 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
   slider: {
-    width: "100%",
-    height: 40,
+    height: 30,
   },
   valueContainer: {
-    width: 80,
+    width: 60,
     alignItems: "flex-end",
   },
   valueText: {
-    color: "#999",
+    color: "#ddd",
     fontSize: 12,
   },
   spacer: {
     height: 40,
+  },
+  noteContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: "rgba(243, 156, 18, 0.1)",
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
+  },
+  noteText: {
+    color: "#ddd",
+    fontSize: 12,
+    marginLeft: 8,
+    flex: 1,
   },
 });

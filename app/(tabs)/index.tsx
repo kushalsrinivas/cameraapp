@@ -3,7 +3,11 @@ import {
   COMPOSITION_GRIDS,
   FILTERS,
 } from "@/constants/CameraConfig";
-import { saveImagePermanently, validateFileExists } from "@/utils/fileUtils";
+import {
+  applyFilterToImage,
+  saveImagePermanently,
+  validateFileExists,
+} from "@/utils/fileUtils";
 import { Ionicons } from "@expo/vector-icons";
 import {
   type CameraType,
@@ -11,7 +15,6 @@ import {
   type FlashMode,
   useCameraPermissions,
 } from "expo-camera";
-import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import { useRouter } from "expo-router";
@@ -246,103 +249,8 @@ export default function CameraScreen() {
         // Process the image based on the selected filter
         let processedImageUri = photo.uri;
 
-        if (selectedFilter > 0) {
-          // If not using the "Normal" filter
-          try {
-            const currentFilter = FILTERS[selectedFilter];
-
-            // TODO: For a complete filter implementation, consider:
-            // 1. Using a third-party image processing library with more advanced features
-            // 2. Creating a custom native module for more powerful image manipulations
-            // 3. Using something like GL filters or shader effects for real-time processing
-            //
-            // Current implementation has limited capacity as ImageManipulator
-            // doesn't support color adjustments like saturation, brightness, etc.
-
-            // Apply different manipulations based on filter type
-            switch (currentFilter.name) {
-              case "Ilford HP5": {
-                // Black and white high contrast film
-                const bwResult = await ImageManipulator.manipulateAsync(
-                  photo.uri,
-                  [
-                    { resize: { width: photo.width } },
-                    // Limited operations available - we'll rely on UI filters for visual effect
-                  ],
-                  {
-                    format: ImageManipulator.SaveFormat.JPEG,
-                    compress: 0.85, // Higher compression for B&W images
-                  }
-                );
-
-                // Note: In a real app, we could apply more advanced processing using a custom library
-                processedImageUri = bwResult.uri;
-                break;
-              }
-
-              case "Kodachrome": {
-                // Vintage film
-                const kodachromeResult = await ImageManipulator.manipulateAsync(
-                  photo.uri,
-                  [
-                    { resize: { width: photo.width } },
-                    // We're limited to basic operations in ImageManipulator
-                  ],
-                  {
-                    format: ImageManipulator.SaveFormat.JPEG,
-                    compress: 0.88, // Slightly higher quality for this filter
-                  }
-                );
-
-                processedImageUri = kodachromeResult.uri;
-                break;
-              }
-
-              case "Fujifilm Velvia": {
-                // Vibrant color film
-                const fujiResult = await ImageManipulator.manipulateAsync(
-                  photo.uri,
-                  [
-                    { resize: { width: photo.width } },
-                    // Basic operations only
-                  ],
-                  {
-                    format: ImageManipulator.SaveFormat.JPEG,
-                    compress: 0.92, // Higher quality for vibrant colors
-                  }
-                );
-
-                processedImageUri = fujiResult.uri;
-                break;
-              }
-
-              default: {
-                // For other filters, use available operations
-                const operations = [
-                  { resize: { width: photo.width } },
-                  // Limited to basic transformations in current API
-                ];
-
-                const result = await ImageManipulator.manipulateAsync(
-                  photo.uri,
-                  operations,
-                  {
-                    format: ImageManipulator.SaveFormat.JPEG,
-                    compress: 0.9,
-                  }
-                );
-
-                processedImageUri = result.uri;
-              }
-            }
-
-            console.log(`Applied filter: ${FILTERS[selectedFilter].name}`);
-          } catch (error) {
-            console.error("Error applying filter:", error);
-            // Fallback to original image
-            processedImageUri = photo.uri;
-          }
-        }
+        // Apply the selected filter to the image
+        processedImageUri = await applyFilterToImage(photo.uri, selectedFilter);
 
         // Save the processed photo to the media library
         await MediaLibrary.saveToLibraryAsync(processedImageUri);
@@ -401,8 +309,14 @@ export default function CameraScreen() {
           // Get the selected image
           const selectedImage = result.assets[0];
 
+          // Apply the selected filter to the imported image
+          const processedImageUri = await applyFilterToImage(
+            selectedImage.uri,
+            selectedFilter
+          );
+
           // Save the image to a permanent location before navigation
-          const permanentUri = await saveImagePermanently(selectedImage.uri);
+          const permanentUri = await saveImagePermanently(processedImageUri);
 
           // Verify the file exists before navigating
           const fileExists = await validateFileExists(permanentUri);
